@@ -146,9 +146,9 @@ list(x=x,y=y)
 ```{r}
 x <- c(4,6,7,6,5)
 
-myNRML(x0=1,delta=0.000001,llik=function(x) log(dpois(12,x)*dpois(10,x)),xrange=c(0,20),parameter="lambda" )
+myNRML(x0=1,delta=0.000001,llik=function(x) log(dpois(4,x)*dpois(6,x)*dpois(7,x)*dpois(6,x)*dpois(5,x)),xrange=c(0,20),parameter="lambda" )
 ```
-The Newton Raphson estimates that $\hat \lambda=10.5$.
+The Newton Raphson estimates that $\hat \lambda=5.36$.
 
 ## Task 4
 
@@ -173,3 +173,163 @@ theta[zmax]   # theta corresponding to max lik
 mymaxlikg(theta=seq(0,1,length=10000))
 ```
 By the Maximum Likelihood Estimate, for two binomial experiments with equivalent probability of success $p$ and with $N_1=6, n_1=2$ and $N_2=10, n_2=4$, that $\hat p=0.375$.
+
+## Task 5
+
+### Joint Probability, Poisson/Binomial
+
+$$
+\begin{equation*}
+  \begin{split}
+    L(\theta_1, \theta_2) &= p(y_1|\theta_1)p(y_2|\theta_2)\\
+                          &= \left({N \choose y_1} \theta_1^{y_1}(1-\theta_1)^{N-y_1} \right) \left(\frac{e^{-\theta_2} \theta_2^{y_2}}{y_2!} \right)
+  \end{split}
+\end{equation*}
+$$
+
+### mymaxlikg2()
+
+Suppose the poisson sample has $y_2=4$ and the binomial sample has $N=20, y_1=4$. Then,
+
+```{r}
+logbinpois=function(theta1,theta2) log(dbinom(4,size=20,prob=theta1)) + log(dpois(4,lambda=theta2))
+
+maxlikg2=function(theta1,theta2,lfun="logbinpois",...){
+n1=length(theta1)
+n2=length(theta2)
+z=outer(theta1,theta2,lfun)
+contour(theta1,theta2,exp(z),...) # exp(z) gives the lik
+maxl=max(exp(z))    # max lik
+coord=which(exp(z)==maxl,arr.ind=TRUE)  # find the co-ords of the max
+th1est=theta1[coord[1]] # mxlik estimate of theta1
+th2est=theta2[coord[2]]
+abline(v=th1est,h=th2est)
+axis(3,th1est,round(th1est,2))
+axis(4,th2est,round(th2est,2),las=1)
+list(th1est=th1est,th2est=th2est)
+}
+```
+
+```{r}
+maxlikg2(theta1=seq(0,1,length=1000),theta2=seq(0,10,length=1000),nlevels=20)
+```
+The maximum likelihood solutions are $\theta_1=p=0.2$ and $\theta_2=\lambda=4$.
+
+## Task 6
+
+### Normal Distribution, Maximum likelihood mean and standard error.
+
+```{r}
+mymlnorm=function(x,mu,sig,...){  #x sample vector
+nmu=length(mu) # number of values in mu
+nsig=length(sig)
+n=length(x) # sample size
+zz=c()    ## initialize a new vector
+lfun=function(x,m,p) log(dnorm(x,mean=m,sd=p))   # log lik for normal
+for(j in 1:nsig){
+z=outer(x,mu,lfun,p=sig[j]) # z a matrix 
+# col 1 of z contains lfun evaluated at each x with first value of mu, 
+# col2 each x with 2nd value of m 
+# all with sig=sig[j]
+y=apply(z,2,sum)
+# y is a vector filled with log lik values, 
+# each with a difft mu and all with the same sig[j]
+zz=cbind(zz,y)
+## zz is the matrix with each column containing log L values, rows difft mu, cols difft sigmas 
+}
+maxl=max(exp(zz))
+coord=which(exp(zz)==maxl,arr.ind=TRUE)
+maxlsig=apply(zz,1,max)
+contour(mu,sig,exp(zz),las=3,xlab=expression(mu),ylab=expression(sigma),axes=TRUE,
+main=expression(paste("L(",mu,",",sigma,")",sep="")), xlim=c(0,max(x)),...)
+mlx=round(mean(x),2)  # theoretical
+mly=round(sqrt((n-1)/n)*sd(x),2)
+#axis(1,at=c(0:20,mlx),labels=sort(c(0:20,mlx)))
+#axis(2,at=c(0:20,mly),labels=TRUE)
+abline(v=mean(x),lwd=2,col="Green")
+abline(h=sqrt((n-1)/n)*sd(x),lwd=2,col="Red")
+
+# Now find the estimates from the co-ords
+muest=mu[coord[1]]
+sigest=sig[coord[2]]
+
+abline(v=muest, h=sigest)
+return(list(x=x,coord=coord,maxl=maxl, muest=muest, sigest=sigest))
+}
+```
+
+```{r}
+y <- c(10,12,13,15,12,11,10)
+mymlnorm(x=y,mu=seq(10,15,length=1000),sig=seq(0.1,5,length=1000),lwd=2,labcex=1)
+```
+
+According to mymlnorm(), $\hat \mu = 11.8569$ and $\hat \sigma = 1.6401$ maximizing $L(10,12,13,15,12,11,10)$ at $1.5136*10^{-6}$.
+
+## Task 7 
+
+### mymlbeta()
+
+```{r}
+mymlbeta=function(x,alpha,beta,...){  #x sample vector
+na=length(alpha) # number of values in alpha
+nb=length(beta)
+n=length(x) # sample size
+zz=c()    ## initialize a new vector
+lfun=function(x,a,b) log(dbeta(x,shape1=a,shape2=b))   # log lik for beta
+for(j in 1:nb){
+z=outer(x,alpha,lfun,b=beta[j]) # z a matrix 
+# col 1 of z contains lfun evaluated at each x with first value of alpha, 
+# col2 each x with 2nd value of a 
+# all with b=beta[j]
+y=apply(z,2,sum)
+# y is a vector filled with log lik values, 
+# each with a difft alpha and all with the same sig[j]
+zz=cbind(zz,y)
+## zz is the matrix with each column containing log L values, rows difft alpha, cols difft betas 
+}
+maxl=max(exp(zz))    # max lik
+coord=which(exp(zz)==maxl,arr.ind=TRUE)  # find the co-ords of the max
+aest=alpha[coord[1]] # mxlik estimate of alpha
+best=beta[coord[2]]
+contour(alpha,beta,exp(zz),las=3,xlab=expression(alpha),ylab=expression(beta),axes=TRUE,
+main=expression(paste("L(",alpha,",",beta,")",sep="")),...)
+
+abline(v=aest, h=best, col="blue")
+points(aest,best,pch=19, col="blue")
+axis(4,best,round(best,2),col="Blue")
+axis(3,aest,round(aest,2),col="Blue")
+return(list(x=x,coord=coord,maxl=maxl,maxalpha=aest,maxbeta=best))
+}
+```
+
+### Sample size 30 from Beta, Estimate Parameters in Blue, True Value in Red
+
+```{r}
+set.seed(1)
+sam = rbeta(30,shape1=3,shape2=4)
+
+layout(mat=matrix(c(1:12), nrow=4, ncol=3, byrow=TRUE))
+#layout.show(2)
+par(mar=c(1,1,1,1))
+
+for (i in 1:12)
+{
+samp=sample(sam, size=30, replace=TRUE)
+mymlbeta(x=samp,alpha=seq(1,5,length=100),beta=seq(2,8,length=100))
+abline(v=3, h=4, col="RED")
+}
+```
+
+## Task 8
+
+### mymlnorm() Call from Personal Package
+
+```{r}
+library(MATH4753moom0002)
+
+y <- c(12,14,14,15,15,15,16,16,18)
+MATH4753moom0002::mymlnorm(x=y,mu=seq(12,18,length=1000),sig=seq(0.1,3,length=1000),lwd=2,labcex=1)
+```
+
+
+
