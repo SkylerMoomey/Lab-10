@@ -17,22 +17,75 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+# Tasks
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+## Task 1
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+### Working Directory
 
-```{r cars}
-summary(cars)
+```{r}
+getwd()
 ```
 
-## Including Plots
+## Task 2
 
-You can also embed plots, for example:
+### mymaxlik()
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+Line A creates a new matrix, called $z$, which performs the binary operation denoted by lfun using the $i^{th}$ term of $x$ as the first operand and the $j^{th}$ term of param as the second. Thus, the $i,j$ index of $z$ is equal to $x$[i] lfun param[j].
+
+Line B sets $i$ equal to the largest index of the column sums of $z$ where the maximum column sum was found.
+
+### Maximum Likelihood of 8 Binomial Experiments, n=20
+
+$$
+\begin{equation*}
+  \begin{split}
+  L &= P(y_1)...P(y_8)\\
+    &=\left ( {20 \choose y_1}p^{y_1}q^{20-y_1} \right)...\left ( {20 \choose y_8}p^{y_8}q^{20-y_8} \right)\\
+    &={20 \choose y_1}...{20 \choose y_8}p^{y_1+...+y_8}q^{20 - y_1-...-y_8}\\
+    &= \prod_{i=1}^{n}{20 \choose y_i}p^{y_i}(1-p)^{20-y_i}
+  \end{split}
+\end{equation*}
+$$
+
+### R function for this
+
+```{r, eval=FALSE}
+dbinom(y1,  20, prob)*dbinom(y2, 20, prob)*dbinom(y3, 20, prob)*dbinom(y4, 20,   prob)*dbinom(y5, 20,  prob)*dbinom(y6, 20, prob)*dbinom(y7, 20,  prob)*dbinom(y8, 20, prob)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+### Plot
+
+```{r}
+mymaxlik=function(lfun,x,param,...){
+# how many param values are there?
+np=length(param)
+# outer -- notice the order, x then param
+# this produces a matrix -- try outer(1:4,5:10,function(x,y) paste(x,y,sep=" "))   to understand
+z=outer(x,param,lfun)
+# z is a matrix where each x,param is replaced with the function evaluated at those values
+y=apply(z,2,sum)
+
+# y is a vector made up of the column sums
+# Each y is the log lik for a new parameter value
+plot(param,y,col="Blue",type="l",lwd=2,...)
+# which gives the index for the value of y == max.
+# there could be a max between two values of the parameter, therefore 2 indices
+# the first max will take the larger indice
+i=max(which(y==max(y)))
+abline(v=param[i],lwd=2,col="Red")
+
+# plots a nice point where the max lik is
+points(param[i],y[i],pch=19,cex=1.5,col="Black")
+axis(3,param[i],round(param[i],2))
+#check slopes. If it is a max the slope shoud change sign from + to 
+# We should get three + and two -vs
+ifelse(i-3>=1 & i+2<=np, slope<-(y[(i-2):(i+2)]-y[(i-3):(i+1)])/(param[(i-2):(i+2)]-param[(i-3):(i+1)]),slope<-"NA")
+return(list(i=i,parami=param[i],yi=y[i],slope=slope))
+}
+logbin=function(x,param) log(dbinom(x,prob=param,size=10))
+mymaxlik(x=c(3,3,4,3,4,5,5,4), param=seq(0,1, length=1000), lfun="logbin", xlab=expression(pi),main="Binomial",cex.main=2)
+```
+
+
+
